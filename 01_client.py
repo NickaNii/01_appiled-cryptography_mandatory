@@ -4,8 +4,10 @@ import sys
 import bcrypt
 
 key = bcrypt.kdf(
-    password=b"password1234",
-    rounds=100
+    password = b"password1234",
+    salt = b"salt1234",
+    desired_key_bytes = 32,
+    rounds = 100
 )
 
 def receive(socket, 
