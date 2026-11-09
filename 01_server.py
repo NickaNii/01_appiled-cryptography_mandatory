@@ -1,11 +1,18 @@
-import socket, threading
+import socket, threading, bcrypt
 
 
 server_port = 8082
 host = 'localhost'
 
+# bcrypt kdf setup
+key = bcrypt.kdf(
+    password = b"password1234", # hard-coded password (key) for demonstration purposes
+    salt = b"salt1234",         # hard-coded salt for demonstration purposes
+    desired_key_bytes = 32,
+    rounds = 100
+)
+
 class Client(threading.Thread):
-    
     # Python constructor
     def __init__(self, client_socket, client_addr,client_id,client_status):
         threading.Thread.__init__(self)
@@ -38,7 +45,7 @@ def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, server_port))
-    server_socket.listen(10)
+    server_socket.listen(10) #TODO edit and set correct listen count
 
     newConnectionsThread = threading.Thread(target = clientConnect, args = (server_socket,))
     newConnectionsThread.start()
