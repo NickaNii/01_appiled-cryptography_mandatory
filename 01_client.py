@@ -13,9 +13,7 @@ key = bcrypt.kdf(
 )
 
 # receive message function
-def receive(
-        socket, 
-        signal):
+def receive(socket, signal):
     while signal:
         try:
             data = socket.recv(32)
