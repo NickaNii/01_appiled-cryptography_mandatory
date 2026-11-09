@@ -1,6 +1,12 @@
 import socket
 import threading
 import sys
+import bcrypt
+
+key = bcrypt.kdf(
+    password=b"password1234",
+    rounds=100
+)
 
 def receive(socket, 
             signal):
