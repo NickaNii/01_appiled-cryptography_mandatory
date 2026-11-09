@@ -1,15 +1,18 @@
+# imports
 import socket
 import threading
 import sys
 import bcrypt
 
+# bcrypt kdf setup
 key = bcrypt.kdf(
-    password = b"password1234", # Hard-coded password (key) for demonstration purposes
-    salt = b"salt1234",         # Hard-coded salt for demonstration purposes
+    password = b"password1234", # hard-coded password (key) for demonstration purposes
+    salt = b"salt1234",         # hard-coded salt for demonstration purposes
     desired_key_bytes = 32,
     rounds = 100
 )
 
+# receive message function
 def receive(
         socket, 
         signal):
@@ -23,6 +26,7 @@ def receive(
             signal = False
             break
 
+# define host and port ID
 host = input("Host ID: ")
 port = int(input("Port ID: "))
 
