@@ -1,13 +1,10 @@
-import socket, threading, bcrypt, os, itertools, datetime, base64
+import socket, threading, bcrypt, os, datetime, base64
 from cryptography.fernet import Fernet
 
-
+# Hardcoded server port and host for testing purpose
 server_port = 8082
 host = 'localhost'
-session_key = ''
 connected_clients = []
-
-user_id_counter = itertools.count(1)
 
 class Client(threading.Thread):
     # Python constructor
@@ -21,37 +18,24 @@ class Client(threading.Thread):
     
     # Python toString()
     def __str__(self):
-        return str(self.client_id) + " " + str(self.client_addr)
+        return str(self.client_id), " ", str(self.client_addr)
 
     # Server checking if client has sent a message
     def run(self):
         self.client_socket.sendall(self.client_id)
-        
-        while self.client_status:
-            try:
+        try:
+            while self.client_status:
                 packet = self.client_socket.recv(2048)
-                msg = packet.decode("utf-8")
-            except Exception as e:
-                print("Something went wrong: ", e)
-                break
-            if not packet:
+                if not packet:
+                    break
+                send_messages(packet, self)
+        except Exception as e:
+            print("Something went wrong: ", e)
+        finally:
+            if self in connected_clients:
+                print("Client:", self.client_id.hex()[:4], "has disconnected.")
                 connected_clients.remove(self)
-                break
-        
-            print("User ID:", self.client_id, "says:", msg)
-            
-            fernet_key = Fernet(base64.urlsafe_b64encode(self.client_kdf))
-            
-            encrypted_msg = fernet_key.encrypt(msg.encode())
-            
-            decrypted_msg = fernet_key.decrypt(encrypted_msg).decode()
-            #print("encrypted_msg: ", encrypted_msg)
-            #print("decrypted_msg: ", decrypted_msg)
-            
-        #for c in connected_clients:
-        #    print(c.client_addr, c.client_status, c.client_kdf)        
-        
-        self.client_socket.close()
+            self.client_socket.close()
 
 # bcrypt kdf setup
 def kdf_gen(password, salt):
@@ -63,7 +47,7 @@ def kdf_gen(password, salt):
     )
 
 
-def clientConnect(server_socket):
+def client_connect(server_socket):
     while True:
         client_socket, client_addr = server_socket.accept()
         
@@ -71,12 +55,25 @@ def clientConnect(server_socket):
         salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
         client_kdf = kdf_gen(client_id,salt)
         
-        print("client KDF: ", client_kdf)
+        print("Client KDF set for Client ID:", client_id.hex()[:4])
         
         connecting_client = Client(client_socket, client_addr,client_id,True,client_kdf)
         connected_clients.append(connecting_client)
         connecting_client.start()
 
+def send_messages(msg, client_sender):
+    fernet_key_sender = Fernet(base64.urlsafe_b64encode(client_sender.client_kdf))
+    decrypted_msg = client_sender.client_id.hex()[:4], ' says: ', fernet_key_sender.decrypt(msg).decode()
+    print("User ID:", decrypted_msg)
+    for c in list(connected_clients):
+        if c.client_kdf == client_sender.client_kdf:
+            continue
+        try:
+            fernet_key_reciever = Fernet(base64.urlsafe_b64encode(c.client_kdf))
+            c.client_socket.sendall(fernet_key_reciever.encrypt(decrypted_msg.encode()))
+            print("Sending message to Client ID:", c.client_id.hex()[:4])
+        except Exception as e:
+            print("Could not send to", c.client_id.hex()[:4], e)
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,7 +81,7 @@ def main():
     server_socket.bind((host, server_port))
     server_socket.listen(10) #TODO edit and set correct listen count
 
-    newConnectionsThread = threading.Thread(target = clientConnect, args = (server_socket,))
+    newConnectionsThread = threading.Thread(target = client_connect, args = (server_socket,))
     newConnectionsThread.start()
 
 main()

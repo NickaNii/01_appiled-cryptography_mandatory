@@ -19,25 +19,29 @@ def receive(socket, signal):
     # First recieve for client_id for use in KDF generation
     try:
         client_id = socket.recv(16)
-        print("client_id: ", client_id)
-        
         salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
         client_kdf = kdf_gen(client_id,salt)
-    except:
-        print("error")
+        
+        print("Your Client ID: ", client_id.hex()[:4])
+        print("Your Client KDF has been generated")
+    except Exception as e:
+        signal = False
+        print("Setup failed: ", e)
+        return
+    
     while signal:
         try:
-            data = socket.recv(32)
-            print(str(data.decode("utf-8")))
-        except:
+            data = socket.recv(2048)
+            fernet_key = Fernet(base64.urlsafe_b64encode(client_kdf))
+            decrypted_msg = fernet_key.decrypt(data).decode()
+            print(decrypted_msg)
+        except Exception as e:
             print("Disconnected from server")
+            print("Error: ", e)
             signal = False
-            break
+            return
 
-# define host and port ID
-#host = input("Host ID: ")
-#port = int(input("Port ID: "))
-
+# Hardcoded server port and host for testing purpose
 port = 8082
 host = 'localhost'
 
