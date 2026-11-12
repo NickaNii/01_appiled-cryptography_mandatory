@@ -16,10 +16,6 @@ class Client(threading.Thread):
         self.client_status = client_status
         self.client_kdf = client_kdf
     
-    # Python toString()
-    def __str__(self):
-        return str(self.client_id), " ", str(self.client_addr)
-
     # Server checking if client has sent a message
     def run(self):
         self.client_socket.sendall(self.client_id)
@@ -52,7 +48,7 @@ def client_connect(server_socket):
         client_socket, client_addr = server_socket.accept()
         
         client_id = os.urandom(16)
-        salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
+        salt = datetime.date.today().isoformat().encode()
         client_kdf = kdf_gen(client_id,salt)
         
         print("Client KDF set for Client ID:", client_id.hex()[:4])
