@@ -2,6 +2,9 @@
 import socket, threading, sys, bcrypt, datetime, base64
 from cryptography.fernet import Fernet
 
+# Hardcoded server port and host for testing purpose
+port = 8082
+host = 'localhost'
 client_kdf = None
 
 # bcrypt kdf setup
@@ -13,7 +16,7 @@ def kdf_gen(password, salt):
         rounds=100,
     )
 
-# receive message function
+# receive messages and initiate kdf generation with datetime and client_id
 def receive(socket, signal):
     global client_kdf
     # First recieve for client_id for use in KDF generation
@@ -28,7 +31,7 @@ def receive(socket, signal):
         signal = False
         print("Setup failed: ", e)
         return
-    
+    # receiving and decrypting messages from server
     while signal:
         try:
             data = socket.recv(2048)
@@ -41,16 +44,11 @@ def receive(socket, signal):
             signal = False
             return
 
-# Hardcoded server port and host for testing purpose
-port = 8082
-host = 'localhost'
-
 try:
     sock = socket.socket(
         socket.AF_INET, 
         socket.SOCK_STREAM)
     sock.connect((host, port))
-
 except:
     print("Failed server connection")
     input("Press ENTER to quit")

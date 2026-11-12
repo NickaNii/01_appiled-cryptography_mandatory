@@ -33,7 +33,7 @@ class Client(threading.Thread):
             print("Something went wrong: ", e)
         finally:
             if self in connected_clients:
-                print("Client:", self.client_id.hex()[:4], "has disconnected.")
+                print("Client:" + self.client_id.hex()[:4] + "has disconnected.")
                 connected_clients.remove(self)
             self.client_socket.close()
 
@@ -46,7 +46,7 @@ def kdf_gen(password, salt):
         rounds=100,
     )
 
-
+# clients connecting and generating kdf with datetime and client_id
 def client_connect(server_socket):
     while True:
         client_socket, client_addr = server_socket.accept()
@@ -61,25 +61,28 @@ def client_connect(server_socket):
         connected_clients.append(connecting_client)
         connecting_client.start()
 
+# sending messages to all connected clients, encrypted with each of their own keys
 def send_messages(msg, client_sender):
     fernet_key_sender = Fernet(base64.urlsafe_b64encode(client_sender.client_kdf))
-    decrypted_msg = client_sender.client_id.hex()[:4], ' says: ', fernet_key_sender.decrypt(msg).decode()
+    decrypted_msg = client_sender.client_id.hex()[:4] + ' says: ' + fernet_key_sender.decrypt(msg).decode()
     print("User ID:", decrypted_msg)
     for c in list(connected_clients):
         if c.client_kdf == client_sender.client_kdf:
             continue
         try:
             fernet_key_reciever = Fernet(base64.urlsafe_b64encode(c.client_kdf))
+            # sending cyphertext
             c.client_socket.sendall(fernet_key_reciever.encrypt(decrypted_msg.encode()))
             print("Sending message to Client ID:", c.client_id.hex()[:4])
         except Exception as e:
             print("Could not send to", c.client_id.hex()[:4], e)
 
+# main method for instansiating sockets and starting threading for the client_connect
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, server_port))
-    server_socket.listen(10) #TODO edit and set correct listen count
+    server_socket.listen(5)
 
     newConnectionsThread = threading.Thread(target = client_connect, args = (server_socket,))
     newConnectionsThread.start()
