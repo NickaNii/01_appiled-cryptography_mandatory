@@ -1,8 +1,5 @@
 # imports
-import socket
-import threading
-import sys
-import bcrypt
+import socket, threading, sys, bcrypt
 
 # bcrypt kdf setup
 key = bcrypt.kdf(
@@ -14,6 +11,13 @@ key = bcrypt.kdf(
 
 # receive message function
 def receive(socket, signal):
+    
+    # First recieve for client_id for use in KDF generation
+    try:
+        client_id = socket.recv(16)
+        print("client_id: ", client_id)
+    except:
+        print("error")
     while signal:
         try:
             data = socket.recv(32)
@@ -25,8 +29,11 @@ def receive(socket, signal):
             break
 
 # define host and port ID
-host = input("Host ID: ")
-port = int(input("Port ID: "))
+#host = input("Host ID: ")
+#port = int(input("Port ID: "))
+
+port = 8082
+host = 'localhost'
 
 try:
     sock = socket.socket(

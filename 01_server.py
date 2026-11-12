@@ -25,6 +25,8 @@ class Client(threading.Thread):
 
     # Server checking if client has sent a message
     def run(self):
+        self.client_socket.sendall(self.client_id)
+        
         while self.client_status:
             try:
                 packet = self.client_socket.recv(2048)
