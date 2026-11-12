@@ -53,7 +53,8 @@ class Client(threading.Thread):
         
         self.client_socket.close()
 
-def derive(password, salt):
+# bcrypt kdf setup
+def kdf_gen(password, salt):
     return bcrypt.kdf(
         password=password,
         salt=salt,
@@ -68,7 +69,7 @@ def clientConnect(server_socket):
         
         client_id = os.urandom(16)
         salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
-        client_kdf = derive(client_id,salt)
+        client_kdf = kdf_gen(client_id,salt)
         
         print("client KDF: ", client_kdf)
         

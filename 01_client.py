@@ -1,28 +1,34 @@
 # imports
-import socket, threading, sys, bcrypt
+import socket, threading, sys, bcrypt, datetime, base64
+from cryptography.fernet import Fernet
+
+client_kdf = None
 
 # bcrypt kdf setup
-key = bcrypt.kdf(
-    password = b"password1234", # hard-coded password (key) for demonstration purposes
-    salt = b"salt1234",         # hard-coded salt for demonstration purposes
-    desired_key_bytes = 32,
-    rounds = 100
-)
+def kdf_gen(password, salt):
+    return bcrypt.kdf(
+        password=password,
+        salt=salt,
+        desired_key_bytes=32,
+        rounds=100,
+    )
 
 # receive message function
 def receive(socket, signal):
-    
+    global client_kdf
     # First recieve for client_id for use in KDF generation
     try:
         client_id = socket.recv(16)
         print("client_id: ", client_id)
+        
+        salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
+        client_kdf = kdf_gen(client_id,salt)
     except:
         print("error")
     while signal:
         try:
             data = socket.recv(32)
             print(str(data.decode("utf-8")))
-        
         except:
             print("Disconnected from server")
             signal = False
@@ -52,5 +58,8 @@ receiveThread = threading.Thread(
 receiveThread.start()
 
 while True:
-    message = input()
-    sock.sendall(str.encode(message))
+    msg = input()
+    fernet_key = Fernet(base64.urlsafe_b64encode(client_kdf))
+    encrypted_msg = fernet_key.encrypt(msg.encode())
+    
+    sock.sendall(encrypted_msg)
