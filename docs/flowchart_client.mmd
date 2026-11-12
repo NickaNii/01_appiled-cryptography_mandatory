@@ -1,0 +1,25 @@
+flowchart TD
+    C1([Start client]) --> C2["Connect to localhost:8082"]
+    C2 --> C3{"Connected?"}
+    C3 -- No --> C4([Print error and exit])
+    C3 -- Yes --> C5["Start receive thread"]
+    C5 --> R1
+    C5 --> M1
+
+    subgraph RCV["Receive thread (receive)"]
+        direction TB
+        R1["Receive client_id (16 bytes)"] --> R2["KDF = bcrypt.kdf(client_id, salt)"]
+        R2 --> R3[/"Wait for data from server"/]
+        R3 --> R4["Decrypt with Fernet key"]
+        R4 --> R5{"Decrypt OK?"}
+        R5 -- Yes --> R6["Print message"]
+        R6 --> R3
+        R5 -- No --> R7(["Print disconnected,<br/>thread ends"])
+    end
+
+    subgraph SND["Main thread (input loop)"]
+        direction TB
+        M1[/"Read input from user"/] --> M2["Encrypt with Fernet key"]
+        M2 --> M3["Send ciphertext to server"]
+        M3 --> M1
+    end

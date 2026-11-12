@@ -1,0 +1,22 @@
+flowchart TD
+    S1([Start server]) --> S2["Bind, listen on localhost:8082,<br/>start accept-loop thread"]
+    S2 --> A1
+
+    subgraph ACC["Accept loop (client_connect)"]
+        direction TB
+        A1[/"Accept new connection"/] --> A2["client_id = os.urandom(16)<br/>salt = today's date<br/>KDF = bcrypt.kdf(client_id, salt)"]
+        A2 --> A3["Create Client thread,<br/>add to connected_clients"]
+        A3 --> A1
+    end
+
+    A3 -. "one thread per client" .-> H1
+
+    subgraph HND["Per-client thread (Client.run)"]
+        direction TB
+        H1["Send client_id to client"] --> H2[/"Wait for packet"/]
+        H2 --> H3{"Packet empty?"}
+        H3 -- Yes --> H7["Remove client from list<br/>and close socket"]
+        H3 -- No --> H4["Decrypt with sender's Fernet key<br/>Build message: id + says + plaintext"]
+        H4 --> H5["For each other client:<br/>encrypt with that client's key and send"]
+        H5 --> H2
+    end

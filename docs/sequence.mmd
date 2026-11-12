@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant A as Client A
+    participant S as Server
+    participant B as Client B
+
+    Note over S: bind, listen on localhost:8082
+
+    A->>S: TCP connect
+    Note over S: client_id = os.urandom(16)<br/>salt = today's date<br/>KDF = bcrypt.kdf(client_id, salt, 32 bytes)
+    S->>A: client_id (16 bytes, plaintext)
+    Note over A: salt = today's date<br/>KDF = bcrypt.kdf(client_id, salt, 32 bytes)
+
+    Note over B,S: Client B connects the same way<br/>and gets its own client_id and KDF
+
+    A->>A: Fernet(KDF_A).encrypt(message)
+    A->>S: ciphertext
+    Note over S: Fernet(KDF_A).decrypt(ciphertext)<br/>msg = id_A + " says: " + plaintext
+
+    loop every connected client except the sender
+        Note over S: Fernet(KDF_B).encrypt(msg)
+        S->>B: ciphertext
+    end
+
+    Note over B: Fernet(KDF_B).decrypt(ciphertext)<br/>print(msg)
