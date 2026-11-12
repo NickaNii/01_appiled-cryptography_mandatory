@@ -1,25 +1,23 @@
-import socket, threading, bcrypt
+import socket, threading, bcrypt, os, itertools, datetime, base64
+from cryptography.fernet import Fernet
 
 
 server_port = 8082
 host = 'localhost'
+session_key = ''
+connected_clients = []
 
-# bcrypt kdf setup
-key = bcrypt.kdf(
-    password = b"password1234", # hard-coded password (key) for demonstration purposes
-    salt = b"salt1234",         # hard-coded salt for demonstration purposes
-    desired_key_bytes = 32,
-    rounds = 100
-)
+user_id_counter = itertools.count(1)
 
 class Client(threading.Thread):
     # Python constructor
-    def __init__(self, client_socket, client_addr,client_id,client_status):
+    def __init__(self, client_socket, client_addr,client_id,client_status,client_kdf):
         threading.Thread.__init__(self)
         self.client_socket = client_socket
         self.client_addr = client_addr
         self.client_id = client_id
         self.client_status = client_status
+        self.client_kdf = client_kdf
     
     # Python toString()
     def __str__(self):
@@ -29,17 +27,53 @@ class Client(threading.Thread):
     def run(self):
         while self.client_status:
             try:
-                msg = self.client_socket.recv(2048)                
+                packet = self.client_socket.recv(2048)
+                msg = packet.decode("utf-8")
             except Exception as e:
                 print("Something went wrong: ", e)
                 break
-            print("User ID: ", str(self.client_id), "says: ", str(msg))
+            if not packet:
+                connected_clients.remove(self)
+                break
+        
+            print("User ID:", self.client_id, "says:", msg)
+            
+            fernet_key = Fernet(base64.urlsafe_b64encode(self.client_kdf))
+            
+            encrypted_msg = fernet_key.encrypt(msg.encode())
+            
+            decrypted_msg = fernet_key.decrypt(encrypted_msg).decode()
+            #print("encrypted_msg: ", encrypted_msg)
+            #print("decrypted_msg: ", decrypted_msg)
+            
+        #for c in connected_clients:
+        #    print(c.client_addr, c.client_status, c.client_kdf)        
+        
+        self.client_socket.close()
+
+def derive(password, salt):
+    return bcrypt.kdf(
+        password=password,
+        salt=salt,
+        desired_key_bytes=32,
+        rounds=100,
+    )
+
 
 def clientConnect(server_socket):
     while True:
         client_socket, client_addr = server_socket.accept()
-        Client(client_socket, client_addr,"client id",True).start()
         
+        client_id = os.urandom(16)
+        salt = datetime.date.today().isoformat().encode()  # b'2026-11-12'
+        client_kdf = derive(client_id,salt)
+        
+        print("client KDF: ", client_kdf)
+        
+        connecting_client = Client(client_socket, client_addr,client_id,True,client_kdf)
+        connected_clients.append(connecting_client)
+        connecting_client.start()
+
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
